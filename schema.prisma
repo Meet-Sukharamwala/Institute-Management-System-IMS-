@@ -1,0 +1,273 @@
+// Institute Management System (IMS) — Production Prisma Schema for MySQL 8.0+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "mysql"
+  url      = env("DATABASE_URL")
+}
+
+model Branch {
+  id        Int      @id @default(autoincrement())
+  code      String   @unique @db.VarChar(32)
+  name      String   @db.VarChar(160)
+  city      String   @db.VarChar(80)
+  state     String   @db.VarChar(80)
+  address   String   @db.Text
+  phone     String   @db.VarChar(32)
+  email     String   @db.VarChar(160)
+  isActive  Boolean  @default(true) @map("is_active")
+  createdAt DateTime @default(now()) @map("created_at")
+
+  users           User[]
+  teachers        Teacher[]
+  students        Student[]
+  courses         Course[]
+  batches         Batch[]
+  classSessions   ClassSession[]
+  feeAssessments  FeeAssessment[]
+  payments        Payment[]
+  payrollRuns     PayrollRun[]
+
+  @@map("branches")
+}
+
+model Role {
+  id          Int              @id @default(autoincrement())
+  code        String           @unique @db.VarChar(32)
+  name        String           @db.VarChar(96)
+  description String           @db.VarChar(255)
+  permissions RolePermission[]
+  users       User[]
+
+  @@map("roles")
+}
+
+model RolePermission {
+  roleId     Int    @map("role_id")
+  permission String @db.VarChar(64)
+  role       Role   @relation(fields: [roleId], references: [id], onDelete: Cascade)
+
+  @@id([roleId, permission])
+  @@map("role_permissions")
+}
+
+model User {
+  id               Int       @id @default(autoincrement())
+  email            String    @unique @db.VarChar(191)
+  passwordHash     String    @map("password_hash") @db.VarChar(255)
+  fullName         String    @map("full_name") @db.VarChar(160)
+  phone            String    @default("") @db.VarChar(32)
+  roleId           Int       @map("role_id")
+  primaryBranchId  Int?      @map("primary_branch_id")
+  isActive         Boolean   @default(true) @map("is_active")
+  mfaEnabled       Boolean   @default(false) @map("mfa_enabled")
+  mfaPinHash       String?   @map("mfa_pin_hash") @db.VarChar(255)
+  failedLoginCount Int       @default(0) @map("failed_login_count")
+  lockedUntilMs    BigInt    @default(0) @map("locked_until_ms")
+  createdAt        DateTime  @default(now()) @map("created_at")
+
+  role          Role     @relation(fields: [roleId], references: [id])
+  primaryBranch Branch?  @relation(fields: [primaryBranchId], references: [id])
+  teacher       Teacher?
+  student       Student?
+
+  @@index([primaryBranchId])
+  @@map("users")
+}
+
+model SalaryStructure {
+  id                      Int       @id @default(autoincrement())
+  name                    String    @unique @db.VarChar(160)
+  model                   String    @db.VarChar(32)
+  baseSalaryPaise         BigInt    @default(0) @map("base_salary_paise")
+  perLectureRatePaise     BigInt    @default(0) @map("per_lecture_rate_paise")
+  hourlyRatePaise         BigInt    @default(0) @map("hourly_rate_paise")
+  allowancesPaise         BigInt    @default(0) @map("allowances_paise")
+  statutoryDeductionPaise BigInt    @default(0) @map("statutory_deduction_paise")
+  deductUnpaidLeave       Boolean   @default(true) @map("deduct_unpaid_leave")
+  createdAt               DateTime  @default(now()) @map("created_at")
+  teachers                Teacher[]
+
+  @@map("salary_structures")
+}
+
+model Teacher {
+  id                Int             @id @default(autoincrement())
+  employeeCode      String          @unique @map("employee_code") @db.VarChar(32)
+  userId            Int             @unique @map("user_id")
+  fullName          String          @map("full_name") @db.VarChar(160)
+  designation       String          @db.VarChar(120)
+  employmentType    String          @map("employment_type") @db.VarChar(32)
+  joiningDate       String          @map("joining_date") @db.VarChar(10)
+  phone             String          @db.VarChar(32)
+  email             String          @db.VarChar(191)
+  primaryBranchId   Int             @map("primary_branch_id")
+  subjectsCsv       String          @default("") @map("subjects_csv") @db.VarChar(255)
+  salaryStructureId Int             @map("salary_structure_id")
+  status            String          @default("ACTIVE") @db.VarChar(24)
+  createdAt         DateTime        @default(now()) @map("created_at")
+
+  user            User            @relation(fields: [userId], references: [id])
+  primaryBranch   Branch          @relation(fields: [primaryBranchId], references: [id])
+  salaryStructure SalaryStructure @relation(fields: [salaryStructureId], references: [id])
+  assignedSessions ClassSession[]
+
+  @@index([primaryBranchId])
+  @@map("teachers")
+}
+
+model Student {
+  id               Int             @id @default(autoincrement())
+  studentCode      String          @unique @map("student_code") @db.VarChar(32)
+  userId           Int?            @unique @map("user_id")
+  fullName         String          @map("full_name") @db.VarChar(160)
+  dob              String?         @db.VarChar(10)
+  gender           String          @default("") @db.VarChar(24)
+  phone            String          @default("") @db.VarChar(32)
+  email            String          @default("") @db.VarChar(191)
+  address          String          @db.Text
+  academicLevel    String          @map("academic_level") @db.VarChar(80)
+  previousSchool   String          @default("") @map("previous_school") @db.VarChar(160)
+  admissionDate    String          @map("admission_date") @db.VarChar(10)
+  branchId         Int             @map("branch_id")
+  status           String          @default("ACTIVE") @db.VarChar(24)
+  emergencyContact String          @default("") @map("emergency_contact") @db.VarChar(160)
+  notes            String          @db.Text
+  createdAt        DateTime        @default(now()) @map("created_at")
+
+  user           User?           @relation(fields: [userId], references: [id])
+  branch         Branch          @relation(fields: [branchId], references: [id])
+  feeAssessments FeeAssessment[]
+  payments       Payment[]
+
+  @@index([branchId, status])
+  @@map("students")
+}
+
+model Course {
+  id              Int      @id @default(autoincrement())
+  code            String   @unique @db.VarChar(32)
+  name            String   @db.VarChar(160)
+  academicLevel   String   @map("academic_level") @db.VarChar(80)
+  durationMonths  Int      @map("duration_months")
+  startDate       String   @map("start_date") @db.VarChar(10)
+  endDate         String   @map("end_date") @db.VarChar(10)
+  defaultFeePaise BigInt   @map("default_fee_paise")
+  branchId        Int      @map("branch_id")
+  status          String   @default("ACTIVE") @db.VarChar(24)
+  createdAt       DateTime @default(now()) @map("created_at")
+
+  branch  Branch  @relation(fields: [branchId], references: [id])
+  batches Batch[]
+
+  @@map("courses")
+}
+
+model Batch {
+  id          Int            @id @default(autoincrement())
+  code        String         @unique @db.VarChar(32)
+  name        String         @db.VarChar(160)
+  courseId    Int            @map("course_id")
+  branchId    Int            @map("branch_id")
+  classroom   String         @default("") @db.VarChar(80)
+  maxCapacity Int            @default(40) @map("max_capacity")
+  startDate   String         @map("start_date") @db.VarChar(10)
+  endDate     String         @map("end_date") @db.VarChar(10)
+  status      String         @default("ACTIVE") @db.VarChar(24)
+  createdAt   DateTime       @default(now()) @map("created_at")
+
+  course   Course         @relation(fields: [courseId], references: [id])
+  branch   Branch         @relation(fields: [branchId], references: [id])
+  sessions ClassSession[]
+
+  @@map("batches")
+}
+
+model ClassSession {
+  id                 Int      @id @default(autoincrement())
+  sessionCode        String   @unique @map("session_code") @db.VarChar(40)
+  branchId           Int      @map("branch_id")
+  courseId           Int      @map("course_id")
+  batchId            Int      @map("batch_id")
+  subjectId          Int      @map("subject_id")
+  assignedTeacherId  Int      @map("assigned_teacher_id")
+  sessionDate        String   @map("session_date") @db.VarChar(10)
+  scheduledStart     String   @map("scheduled_start") @db.VarChar(5)
+  scheduledEnd       String   @map("scheduled_end") @db.VarChar(5)
+  classroom          String   @default("") @db.VarChar(80)
+  status             String   @default("SCHEDULED") @db.VarChar(32)
+  cancellationReason String   @default("") @map("cancellation_reason") @db.VarChar(255)
+  createdAt          DateTime @default(now()) @map("created_at")
+
+  branch          Branch  @relation(fields: [branchId], references: [id])
+  batch           Batch   @relation(fields: [batchId], references: [id])
+  assignedTeacher Teacher @relation(fields: [assignedTeacherId], references: [id])
+
+  @@index([branchId, sessionDate])
+  @@map("class_sessions")
+}
+
+model FeeAssessment {
+  id                Int      @id @default(autoincrement())
+  studentId         Int      @map("student_id")
+  branchId          Int      @map("branch_id")
+  batchId           Int?     @map("batch_id")
+  title             String   @db.VarChar(160)
+  grossAmountPaise  BigInt   @map("gross_amount_paise")
+  discountPaise     BigInt   @default(0) @map("discount_paise")
+  discountReason    String   @default("") @map("discount_reason") @db.VarChar(255)
+  adjustmentPaise   BigInt   @default(0) @map("adjustment_paise")
+  adjustmentReason  String   @default("") @map("adjustment_reason") @db.VarChar(255)
+  dueDate           String   @map("due_date") @db.VarChar(10)
+  createdByUserId   Int      @map("created_by_user_id")
+  createdAt         DateTime @default(now()) @map("created_at")
+
+  student Student @relation(fields: [studentId], references: [id])
+  branch  Branch  @relation(fields: [branchId], references: [id])
+
+  @@index([studentId])
+  @@map("fee_assessments")
+}
+
+model Payment {
+  id                Int       @id @default(autoincrement())
+  receiptNumber     String    @unique @map("receipt_number") @db.VarChar(40)
+  idempotencyKey    String    @unique @map("idempotency_key") @db.VarChar(96)
+  studentId         Int       @map("student_id")
+  branchId          Int       @map("branch_id")
+  amountPaise       BigInt    @map("amount_paise")
+  paymentMethod     String    @map("payment_method") @db.VarChar(32)
+  referenceNo       String    @default("") @map("reference_no") @db.VarChar(96)
+  paymentDate       String    @map("payment_date") @db.VarChar(10)
+  status            String    @default("POSTED") @db.VarChar(24)
+  reversedAt        DateTime? @map("reversed_at")
+  reversedByUserId  Int?      @map("reversed_by_user_id")
+  reversalReason    String    @default("") @map("reversal_reason") @db.VarChar(255)
+  collectedByUserId Int       @map("collected_by_user_id")
+  notes             String    @default("") @db.VarChar(255)
+  createdAt         DateTime  @default(now()) @map("created_at")
+
+  student Student @relation(fields: [studentId], references: [id])
+  branch  Branch  @relation(fields: [branchId], references: [id])
+
+  @@map("payments")
+}
+
+model PayrollRun {
+  id                 Int       @id @default(autoincrement())
+  periodMonth        String    @map("period_month") @db.VarChar(7)
+  branchId           Int       @map("branch_id")
+  workingDays        Int       @default(26) @map("working_days")
+  status             String    @default("DRAFT") @db.VarChar(24)
+  calculatedByUserId Int       @map("calculated_by_user_id")
+  approvedByUserId   Int?      @map("approved_by_user_id")
+  approvedAt         DateTime? @map("approved_at")
+  createdAt          DateTime  @default(now()) @map("created_at")
+
+  branch Branch @relation(fields: [branchId], references: [id])
+
+  @@unique([periodMonth, branchId])
+  @@map("payroll_runs")
+}

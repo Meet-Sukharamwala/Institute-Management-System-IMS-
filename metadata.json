@@ -1,0 +1,6 @@
+{
+  "name": "Institute Management System (IMS)",
+  "description": "Comprehensive multi-branch educational institute operations, academic syllabus tracking, verified teacher attendance, student fee ledger, payroll, and role-based portals.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
